@@ -16,7 +16,8 @@ app.use(express.static("public"));
 // const workItems = [];
 
 //now with mongoose
-mongoose.connect("mongodb://0.0.0.0:27017/todolistDB", {useNewUrlParser: true});
+mongoose.connect("mongodb+srv://munnigel:s9919737d@todolistcluster.ywvbmsr.mongodb.net/todolistDB", {useNewUrlParser: true});
+
 
 //schemas
 const itemsSchema = {
@@ -97,11 +98,26 @@ app.post("/", function(req, res){
 app.post('/delete', function(req, res){
   console.log(req.body.checkbox);
   const checkedItemId = req.body.checkbox;
-  Item.findByIdAndRemove(checkedItemId, function(err){
-    if(err) throw err;
-    console.log("Item deleted." + checkedItemId);
-    res.redirect('/');
-  });
+  const listName = req.body.listName;
+
+  //check to see if we are deleting from the default list or the custom list
+  if (listName === "Today"){
+    Item.findByIdAndRemove(checkedItemId, function(err){
+      if(err) throw err;
+      console.log("Item deleted." + checkedItemId);
+      res.redirect('/');
+    });
+  } else {
+    // search for the list document in list database and delete the item from that list
+    // $pull is a mongoose method that removes the item from the array
+    List.findOneAndUpdate({name: listName}, {$pull: {items: {_id: checkedItemId}}}, function(err, foundList){
+      if(err) throw err;
+      res.redirect("/" + listName);
+    }
+    );
+  }
+
+
 })
   
 
@@ -125,9 +141,11 @@ app.get('/:customListName', function(req, res){
 
       list.save();
       res.redirect('/' + customListName);
+      console.log("Default list created at" + customListName);
     } else {
       //show an existing list
       res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
+      console.log("Found existing list at" + customListName);
     }
   });
 })
