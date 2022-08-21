@@ -18,13 +18,20 @@ app.use(express.static("public"));
 //now with mongoose
 mongoose.connect("mongodb://0.0.0.0:27017/todolistDB", {useNewUrlParser: true});
 
+//schemas
 const itemsSchema = {
   name: String
 };
-
 const Item = mongoose.model("Item", itemsSchema); 
 
-//add 3 items into itemlist
+const listSchema = {
+  name: String,
+  items: [itemsSchema]
+};
+const List = mongoose.model("List", listSchema);
+
+
+//add 3 default items into itemlist
 const item1 = new Item({
   name: "Welcome to your todolist!"
 });
@@ -39,7 +46,7 @@ const defaultItems = [item1, item2, item3];
 
 
 app.get("/", function(req, res) {
-
+  //find all items in the database
   Item.find({}, function(err, foundItems){
     if(err) throw err;
 
@@ -58,18 +65,34 @@ app.get("/", function(req, res) {
 }); 
 
 
+
+
 app.post("/", function(req, res){
   const itemName = req.body.newItem;
+  const listName = req.body.list;
 
   const item = new Item({
     name: itemName
   });
 
-  item.save(function(err){
-    if(err) throw err;
-    console.log("Item saved successfully. Item is  " + req.body.newItem); })
-  res.redirect("/"); //re-render the list
+  //check to see if the listname that triggered the POST request is the default list or a custom list
+  if (listName === "Today"){
+    item.save();
+    res.redirect("/"); //re-render the list
+  } 
+  else {
+    //search for the list document in list database and add the item to that list
+    List.findOne({name: listName}, function(err, foundList){
+      if (err) throw err;
+      //push the item to the foundList's items array, and save
+      foundList.items.push(item);
+      foundList.save();
+      res.redirect("/" + listName);
+    });
+  }
 });
+
+
 
 app.post('/delete', function(req, res){
   console.log(req.body.checkbox);
@@ -79,15 +102,36 @@ app.post('/delete', function(req, res){
     console.log("Item deleted." + checkedItemId);
     res.redirect('/');
   });
-
 })
   
 
 
 
-app.get("/work", function(req,res){
-  res.render("list", {listTitle: "Work List", newListItems: workItems});
-});
+
+//the string after : is any name you want to give to the route
+//u can route to any page and the 3 default items are added to the list of that page
+app.get('/:customListName', function(req, res){
+  const customListName = req.params.customListName;
+
+  //check whether the list the user is trying to access exists in the database
+  List.findOne({name: customListName}, function(err, foundList){
+    if(err) throw err;
+    if(!foundList){
+      //add a new list into the database where the name is the same as the route and the items are the default 3 items
+      const list = new List({
+        name: customListName,
+        items: defaultItems
+      })
+
+      list.save();
+      res.redirect('/' + customListName);
+    } else {
+      //show an existing list
+      res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
+    }
+  });
+})
+
 
 app.get("/about", function(req, res){
   res.render("about");
