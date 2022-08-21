@@ -141,11 +141,11 @@ app.get('/:customListName', function(req, res){
 
       list.save();
       res.redirect('/' + customListName);
-      console.log("Default list created at" + customListName);
+      console.log("Default list created at " + customListName);
     } else {
       //show an existing list
       res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
-      console.log("Found existing list at" + customListName);
+      console.log("Found existing list at " + customListName);
     }
   });
 })
